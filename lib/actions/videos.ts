@@ -29,6 +29,14 @@ export async function generateMetadataAction(videoId: string): Promise<ActionRes
     return { ok: true, data: metadata };
   } catch (err) {
     console.error("[metadata] generation failed", err);
+    const error = err as NodeJS.ErrnoException;
+    if (error?.code === "ENOENT" || (err instanceof Error && err.message.includes("ENOENT"))) {
+      return {
+        ok: false,
+        error:
+          "Video file was not found on the server (ENOENT). On serverless platforms like Vercel, requests run in separate ephemeral containers and do not share disk storage. Deploy to a persistent server (Railway, Render, VPS) as recommended in the README.",
+      };
+    }
     return { ok: false, error: errorMessage(err, "Couldn't generate the video details. Please try again.") };
   }
 }
