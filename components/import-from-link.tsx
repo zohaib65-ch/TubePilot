@@ -19,9 +19,18 @@ export function ImportFromLink() {
     if (!url.trim()) return;
     setError("");
     startTransition(async () => {
-      const res = await importFromLinkAction(url);
-      if (res.ok) router.push(`/upload/${res.data.id}`);
-      else setError(res.error);
+      try {
+        const res = await importFromLinkAction(url);
+        if (res.ok) {
+          router.push(`/upload/${res.data.id}`);
+        } else {
+          console.error("[TubePilot Import Error]", res.error);
+          setError(res.error);
+        }
+      } catch (err) {
+        console.error("[TubePilot Import Exception]", err);
+        setError(err instanceof Error ? err.message : "Failed to import video.");
+      }
     });
   };
 

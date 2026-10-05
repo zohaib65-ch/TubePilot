@@ -1,4 +1,5 @@
 import "server-only";
+import os from "node:os";
 import path from "node:path";
 import { mkdir, rm } from "node:fs/promises";
 import { env } from "@/lib/env";
@@ -12,6 +13,14 @@ export const ALLOWED_VIDEO_TYPES: Record<string, string> = {
 };
 
 export function uploadDir() {
+  // Serverless platforms (e.g. Vercel, AWS Lambda) have a read-only root filesystem.
+  // Only /tmp is writable. Fall back to /tmp if UPLOAD_DIR is a relative path.
+  if (
+    (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) &&
+    (!process.env.UPLOAD_DIR || process.env.UPLOAD_DIR.startsWith("."))
+  ) {
+    return path.join(os.tmpdir(), "tubepilot-uploads");
+  }
   // Runtime-configured directory; tell Turbopack not to trace it into the build output.
   return path.resolve(/*turbopackIgnore: true*/ process.cwd(), env().UPLOAD_DIR);
 }

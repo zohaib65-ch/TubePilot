@@ -77,6 +77,7 @@ export async function importFromLinkAction(url: string): Promise<ActionResult<{ 
   } catch (err) {
     if (err instanceof IngestError) return { ok: false, error: err.message };
     console.error("[import] failed", err);
-    return { ok: false, error: "Couldn't import that video. Please try again." };
+    const detail = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `Couldn't import that video: ${detail}` };
   }
 }

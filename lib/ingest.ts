@@ -7,7 +7,7 @@ import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { Types } from "mongoose";
 import { env } from "@/lib/env";
 import { connectDB } from "@/lib/db";
-import { ALLOWED_VIDEO_TYPES, ensureUploadDir, videoPath } from "@/lib/storage";
+import { ALLOWED_VIDEO_TYPES, ensureUploadDir, uploadDir, videoPath } from "@/lib/storage";
 import { Video } from "@/lib/models/Video";
 import type { UserDoc } from "@/lib/models/User";
 
@@ -98,6 +98,25 @@ export async function ingestVideo(
     await rm(tempPath, { force: true });
     if (err instanceof IngestError) throw err;
     console.error("[ingest] failed to store video", err);
-    throw new IngestError("Saving the video failed. Please try again.", 500);
+
+    const error = err as NodeJS.ErrnoException;
+    if (error?.code === "EROFS") {
+      throw new IngestError(
+        "Server storage directory is read-only (EROFS). Serverless platforms (like Vercel) have a read-only filesystem. Set UPLOAD_DIR=/tmp or host on a persistent server (VPS, Railway, Render).",
+        500,
+      );
+    }
+    if (error?.code === "EACCES" || error?.code === "EPERM") {
+      throw new IngestError(
+        `Server storage permission denied at "${uploadDir()}". Ensure the server process has write access.`,
+        500,
+      );
+    }
+    if (error?.code === "ENOSPC") {
+      throw new IngestError("Server storage is out of disk space (ENOSPC).", 500);
+    }
+
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new IngestError(`Saving the video failed: ${detail}`, 500);
   }
 }
